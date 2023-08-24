@@ -12,7 +12,7 @@ class Field:
         return self.value
 
 class Name(Field):
-    name = 'UserName'
+    pass
 
 class Phone(Field):
     def __init__(self, value) -> None:
@@ -28,9 +28,18 @@ class Record:
     def add_new_phone(self, phone): #add phone number to the list
         self.phones.append(Phone(value=phone))
 
-    def amend_phone(self, name, phone): #empty list and add new phone number
-        self.phones.clear()
-        self.add_new_phone(phone)
+    def amend_phone(self, name, new_phone, old_phone): #amend phone number
+        phone_found = False
+        for stored_phone in self.phones.copy():
+            if str(stored_phone) == old_phone:
+                self.phones.remove(stored_phone)
+                self.add_new_phone(new_phone)
+                phone_found = True
+
+        if not phone_found:
+            raise CustomError("phone number was not found")
+        # self.phones.clear()
+        # self.add_new_phone(phone)
 
     def remove_phone(self, phone):
         phone_found = False
@@ -55,13 +64,24 @@ def parse_input(user_input):
         if user_input.startswith(request):
             modif_input = user_input.replace(request, '', 1).strip()
             name = modif_input.split(' ')[0]
-            phone = ''.join(re.findall(r'\s(\d+)', modif_input))
-            func = commands[request]
-            return func(request, name, phone)
+            matches = re.findall(r'\s(\d+)', modif_input)
+            if len(matches) == 1:
+                old_number = matches[-1]
+                func = commands[request]
+                return func(name, old_number)
+            elif len(matches) == 2:
+                old_number = matches[-1]
+                new_number = matches[-2]
+                func = commands[request]
+                return func(name, new_number, old_number)
+            elif len(matches) == 0:
+                func = commands[request]
+                return func(name)
+        
     return "please provide a valid command"
 
 #adding new contact/phone number
-def add_contact (request, name, phone): 
+def add_contact (name, phone=None): 
     if not name:  #handle situation when name is not provided at all
         raise CustomError("please provide name and phone number divided by space")
     elif name not in phone_book:
@@ -76,18 +96,18 @@ def add_contact (request, name, phone):
         return("new phone number successfully added to existing contact")
           
 #change the phone number
-def change_phone (request, name, phone):
+def change_phone (name, new_phone, old_phone):
     if name not in phone_book:
         raise CustomError('name not found')
-    if not phone:
-        raise CustomError("please provide name and phone number divided by space")
+    if not new_phone or not old_phone:
+        raise CustomError("please provide name, new number and old number divided by space")
     
     record = phone_book[name]
-    record.amend_phone(name, phone)
+    record.amend_phone(name, new_phone, old_phone)
     return("contact successfully changed")
     
 #remove the phone number   
-def delete_phone(request, name, phone):
+def delete_phone(name, phone):
     if name not in phone_book:
         raise CustomError('name not found')
     if not phone:
@@ -98,7 +118,7 @@ def delete_phone(request, name, phone):
     return("phone number successfully removed")
 
 #show the phone of user
-def show_phone (notused1, name, notused2): 
+def show_phone (name): 
     if name not in phone_book:
         raise CustomError("please provide a valid name")
     
@@ -111,24 +131,24 @@ def show_phone (notused1, name, notused2):
     for el in phone_numbers:
         if el.isdigit():
             return f"{name}: {', '.join(phone_numbers)}"
-    else:
-        return f"{name}: no phone numbers"
+    
+    return f"{name}: no phone numbers"
 
 #show all name-phone pairs
-def show_all(notused1, notused2, notused3):
+def show_all(notused1):
     contacts = []
     for name in phone_book.keys():
-        one_contact = show_phone(None, name, None)
+        one_contact = show_phone(name)
         contacts.append(one_contact)
     if contacts:
         return ';\n'.join(contacts)
     else:
         raise CustomError("phone book is empty")
 
-def hello(notused1, notused2, notused3):
+def hello(notused1):
     return("How can I help you?")
 
-def search (request, search_word, phone):
+def search (search_word, phone):
     result= []
     for name, record in phone_book.items():
         phone_numbers = ', '.join(phone.value for phone in record.phones)
